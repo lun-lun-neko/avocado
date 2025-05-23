@@ -1,3 +1,73 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+
+from app.core.database import get_db
+from app.services.chains.intent_chain import intent_chain
+from app.services.chains.vocab_chain import build_vocab_chain, get_user_preferred_fields
+
+from langchain_openai import ChatOpenAI
+from app.core.config import OPENAI_API_KEY
+
+router = APIRouter()
+
+# ✅ 요청 데이터 모델 정의
+class ChatRequest(BaseModel):
+    user_id: int
+    message: str
+
+# ✅ 응답 데이터 모델 정의
+class ChatResponse(BaseModel):
+    intent: str
+    response: str
+
+# ✅ 일반 대화용 LLM
+general_llm = ChatOpenAI(model_name="gpt-4", temperature=0.7, api_key=OPENAI_API_KEY)
+
+@router.post("/chat", response_model=ChatResponse)
+def chat_with_gpt(request: ChatRequest, db: Session = Depends(get_db)):
+    user_message = request.message
+    user_id = request.user_id
+
+    # 1. 의도 분류
+    intent_result = intent_chain.invoke({"message": user_message})
+    intent = intent_result.content.strip()
+
+    # 2. 단어 설명 요청일 경우
+    if intent == "vocab":
+        preferred_fields = get_user_preferred_fields(db, user_id)
+        vocab_chain = build_vocab_chain(preferred_fields)
+        vocab_result = vocab_chain.invoke({"word": user_message})
+        return ChatResponse(intent=intent, response=vocab_result.content.strip())
+
+    # 3. 문법, 번역, 문장 교정 요청일 경우
+    if intent in ["grammar", "translation", "correction"]:
+        gpt_response = general_llm.invoke(user_message)
+        return ChatResponse(intent=intent, response=gpt_response.content.strip())
+
+    # 4. 퀴즈 요청일 경우
+    if intent == "quiz":
+        quiz_prompt = f"Create a short 3-question English quiz based on this request: '{user_message}'"
+        quiz_response = general_llm.invoke(quiz_prompt)
+        return ChatResponse(intent=intent, response=quiz_response.content.strip())
+
+    # 5. 일상 대화일 경우
+    if intent == "conversation":
+        casual_prompt = f"Respond casually and naturally to: '{user_message}'"
+        casual_response = general_llm.invoke(casual_prompt)
+        return ChatResponse(intent=intent, response=casual_response.content.strip())
+
+    # 6. 그 외 기타
+    return ChatResponse(intent=intent, response="죄송합니다. 해당 요청은 이해하지 못했습니다.")
+
+
+
+
+
+
+
+
+"""
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -17,6 +87,9 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 def chat_with_gpt(request: ChatRequest, db: Session = Depends(get_db)):
     return {"gpt_response": ask_gpt(request.user_message, user_id=1, db=db)}
+    
+"""# chain 없는 버전
+
 
 """"
 #userdata 모델
