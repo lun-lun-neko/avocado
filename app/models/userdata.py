@@ -18,5 +18,6 @@ class Userdata(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     learned_words: Mapped[Optional[dict]] = mapped_column(JSON)
     user_level: Mapped[Optional[str]] = mapped_column(String(20))
+    preferred_fields: Mapped[Optional[list[str]]] = mapped_column(JSON)
 
     user: Mapped['Users'] = relationship('Users', back_populates='userdata')

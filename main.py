@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from app.routes import chat
+from app.routes import chat, onboarding
 from pydantic import BaseModel
 from openai import OpenAI
 import os
@@ -7,6 +7,7 @@ import os
 app = FastAPI()
 
 app.include_router(chat.router)
+app.include_router(onboarding.router)
 
 @app.get("/")
 def read_root():
