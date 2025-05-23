@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.core.database import get_db
+from app.core.database import get_db, engine
 from app.services.chains.intent_chain import intent_chain
 from app.services.chains.vocab_chain import build_vocab_chain, get_user_preferred_fields
 
 from langchain_openai import ChatOpenAI
+from langchain.memory.chat_message_histories import SQLChatMessageHistory
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain, LLMChain
 from app.core.config import OPENAI_API_KEY
 
 router = APIRouter()
@@ -21,7 +24,97 @@ class ChatResponse(BaseModel):
     intent: str
     response: str
 
-# ✅ 일반 대화용 LLM
+# ✅ LLM 설정
+general_llm = ChatOpenAI(model_name="gpt-4", temperature=0.7, api_key=OPENAI_API_KEY)
+
+# ✅ 사용자별 메모리 체인 구성
+def get_conversation_chain(user_id: int):
+    session_id = f"user-{user_id}"
+    message_history = SQLChatMessageHistory(session_id=session_id, connection=engine)
+    memory = ConversationBufferMemory(chat_memory=message_history, return_messages=True)
+    return ConversationChain(llm=general_llm, memory=memory, verbose=False), memory
+
+@router.post("/chat", response_model=ChatResponse)
+def chat_with_gpt(request: ChatRequest, db: Session = Depends(get_db)):
+    user_message = request.message
+    user_id = request.user_id
+
+    # 1. 의도 분류
+    intent_result = intent_chain.invoke({"message": user_message})
+    intent = intent_result.content.strip()
+
+    # 2. 공통 메모리 체인 생성
+    conversation_chain, memory = get_conversation_chain(user_id)
+
+    # 3. 단어 설명 요청일 경우
+    if intent == "vocab":
+        preferred_fields = get_user_preferred_fields(db, user_id)
+        vocab_chain = build_vocab_chain(preferred_fields)
+        vocab_chain_with_memory = vocab_chain | memory
+        vocab_result = vocab_chain_with_memory.invoke({"word": user_message})
+        return ChatResponse(intent=intent, response=vocab_result.content.strip())
+
+    # 4. 문법, 번역, 문장 교정 요청일 경우
+    if intent in ["grammar", "translation", "correction"]:
+        gpt_response = conversation_chain.invoke(user_message)
+        if isinstance(gpt_response, dict) and "content" in gpt_response:
+            return ChatResponse(intent=intent, response=gpt_response["content"].strip())
+        return ChatResponse(intent=intent, response=str(gpt_response).strip())
+
+    # 5. 퀴즈 요청일 경우
+    if intent == "quiz":
+        quiz_prompt = f"Create a short 3-question English quiz based on this request: '{user_message}'"
+        quiz_response = conversation_chain.invoke(quiz_prompt)
+        if isinstance(quiz_response, dict) and "content" in quiz_response:
+            return ChatResponse(intent=intent, response=quiz_response["content"].strip())
+        return ChatResponse(intent=intent, response=str(quiz_response).strip())
+
+    # 6. 일상 대화일 경우
+    if intent == "conversation":
+        casual_prompt = f"Respond casually and naturally to: '{user_message}'"
+        casual_response = conversation_chain.invoke(casual_prompt)
+        if isinstance(casual_response, dict) and "content" in casual_response:
+            return ChatResponse(intent=intent, response=casual_response["content"].strip())
+        return ChatResponse(intent=intent, response=str(casual_response).strip())
+
+    # 7. 기타 처리
+    return ChatResponse(intent=intent, response="죄송합니다. 해당 요청은 이해하지 못했습니다.")
+
+
+
+
+
+
+
+
+
+
+
+"""
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+
+from app.core.database import get_db
+from app.services.chains.intent_chain import intent_chain
+from app.services.chains.vocab_chain import build_vocab_chain, get_user_preferred_fields
+
+from langchain_openai import ChatOpenAI
+from app.core.config import OPENAI_API_KEY
+
+router = APIRouter()
+
+# 요청 데이터 모델 정의
+class ChatRequest(BaseModel):
+    user_id: int
+    message: str
+
+# 응답 데이터 모델 정의
+class ChatResponse(BaseModel):
+    intent: str
+    response: str
+
+# 일반 대화용 LLM
 general_llm = ChatOpenAI(model_name="gpt-4", temperature=0.7, api_key=OPENAI_API_KEY)
 
 @router.post("/chat", response_model=ChatResponse)
@@ -60,7 +153,7 @@ def chat_with_gpt(request: ChatRequest, db: Session = Depends(get_db)):
     # 6. 그 외 기타
     return ChatResponse(intent=intent, response="죄송합니다. 해당 요청은 이해하지 못했습니다.")
 
-
+"""
 
 
 

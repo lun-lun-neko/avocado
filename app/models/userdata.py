@@ -1,11 +1,8 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Integer, JSON, ForeignKey, ForeignKeyConstraint, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from app.models.user import Users  # 타입 힌트용
+from app.models.user import Users
 
 class Userdata(Base):
     __tablename__ = 'userdata'
@@ -20,4 +17,4 @@ class Userdata(Base):
     user_level: Mapped[Optional[str]] = mapped_column(String(20))
     preferred_fields: Mapped[Optional[list[str]]] = mapped_column(JSON)
 
-    user: Mapped['Users'] = relationship('Users', back_populates='userdata')
+    user: Mapped[Users] = relationship(Users, back_populates="userdata")

@@ -1,9 +1,11 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
-from app.models.userdata import Userdata
-from app.models.chathistory import  ChatHistory
+from app.models.chathistory import ChatHistory
+
+if TYPE_CHECKING:
+    from app.models.userdata import Userdata
 
 class Users(Base):
     __tablename__ = 'users'
@@ -12,7 +14,5 @@ class Users(Base):
     username: Mapped[Optional[str]] = mapped_column(String(50))
     email: Mapped[Optional[str]] = mapped_column(String(100))
 
-    userdata: Mapped[List['Userdata']] = relationship(
-        'Userdata', back_populates='user', cascade="all, delete"
-    )
-    chathistory: Mapped[List['ChatHistory']] = relationship('ChatHistory', back_populates='user')
+    userdata: Mapped[List["Userdata"]] = relationship("Userdata", back_populates="user", cascade="all, delete")
+    chathistory: Mapped[List[ChatHistory]] = relationship(ChatHistory, back_populates="user")
