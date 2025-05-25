@@ -13,7 +13,8 @@ onboarding_prompt = PromptTemplate(
     template=(
         "You are an onboarding assistant for an English learning app.\n"
         "Ask the user their English level (choose from: Beginner, Intermediate, Advanced)\n"
-        "and what word information they want to see (choose from: word, definition, example, ipa, related_words, part_of_speech, synonyms, antonyms, frequency, etymology, translation, collocations, mnemonic, usage_note, register, image).\n"
+        "and what word information they want to see (choose from: definition, example, ipa, related_words, part_of_speech, synonyms, antonyms, frequency, etymology, translation, collocations, mnemonic, usage_note, register, image).\n"
+        "Always include \"word\" and \"korean_meaning\" in the preferred_fields regardless of the user's input.\n"
         "After the user answers, extract only the structured data.\n"
         "Respond ONLY in this JSON format (no explanations):\n"
         "{{\"user_level\": \"...\", \"preferred_fields\": [\"...\"]}}\n"

@@ -50,8 +50,7 @@ def chat_with_gpt(request: ChatRequest, db: Session = Depends(get_db)):
     if intent == "vocab":
         preferred_fields = get_user_preferred_fields(db, user_id)
         vocab_chain = build_vocab_chain(preferred_fields)
-        vocab_chain_with_memory = vocab_chain | memory
-        vocab_result = vocab_chain_with_memory.invoke({"word": user_message})
+        vocab_result = vocab_chain.invoke({"message": user_message})
         return ChatResponse(intent=intent, response=vocab_result.content.strip())
 
     # 4. 문법, 번역, 문장 교정 요청일 경우

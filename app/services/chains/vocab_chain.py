@@ -12,14 +12,17 @@ def build_vocab_chain(preferred_fields: list[str]):
     field_lines = "\n".join([f"  \"{field}\": ..." for field in preferred_fields])
 
     prompt = PromptTemplate(
-        input_variables=["word"],
+        input_variables=["message"],
         template=(
-            f"You are an English vocabulary tutor.\n"
-            f"Explain the word '{{word}}' in JSON format, including only these fields: {fields_string}.\n"
+            "You are an English vocabulary tutor.\n"
+            "The user will send a message asking about a word (the message may contain Korean and may not be just the word).\n"
+            "Your job is to identify the intended English word, and explain it clearly.\n"
+            f"Respond in JSON format, including only the following fields: {fields_string}.\n"
             "Respond only in this structure:\n"
             "{{\n"
             f"{field_lines}\n"
-            "}}"
+            "}}\n"
+            "User message: {message}"
         )
     )
     return prompt | llm
